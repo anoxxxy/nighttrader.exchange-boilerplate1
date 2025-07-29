@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive Trading Dashboard</title>
+    <!--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">-->
+    <link href="./assets/css/bootstrap-sneat.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .component-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+        }
+        .component-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .data-item {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            background: #f8f9fa;
+            border-radius: 0.375rem;
+        }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .loading { opacity: 0.6; }
+        .price-change {
+            animation: priceFlash 0.5s ease-in-out;
+        }
+        @keyframes priceFlash {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(255, 193, 7, 0.3); }
+        }
+        .market-row:hover {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .portfolio-item {
+            border-left: 4px solid #007bff;
+            padding-left: 1rem;
+        }
+
+        .depth-row:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+@media (max-width: 768px) {
+    .depth-wrapper {
+        flex-direction: column;
+    }
+}
+#connection-status {
+  transition: all 0.3s ease;
+}
+
+.network-change-feedback {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  border-radius: 4px;
+  z-index: 1000;
+  transition: opacity 0.5s;
+}
+
+.network-change-feedback.fade-out {
+  opacity: 0;
+}
+
+.network-selector {
+            min-width: 140px;
+        }
+        
+        .network-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        
+        .network-mainnet {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .network-testnet {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12 d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Trading Dashboard
+                </h1>
+                <div class="d-flex align-items-center gap-3">
+                    <!-- Network Selector -->
+                    <div class="d-flex align-items-center">
+                        <select id="network-select" class="form-select form-select-sm network-selector">
+                            <option value="mainnet">Mainnet</option>
+                            <option value="testnet">Testnet</option>
+                        </select>
+                        <span id="network-badge" class="network-badge network-mainnet">MAINNET</span>
+                    </div>
+                    
+                    <!-- Connection Status -->
+                    <div id="connection-status">
+                        <i class="fas fa-circle text-secondary me-1"></i>
+                        <span class="text-muted">Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Markets -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="component-card card" data-component="market-list">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Top Markets
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm market-filter" style="width: auto;">
+                            <option value="volume">Volume</option>
+                            <option value="gainers">Gainers</option>
+                            <option value="losers">Losers</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary refresh-btn">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="markets-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Stats + Recent Trades -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="component-card card h-100" data-component="market-stats">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Market Statistics
+                    </h5>
+                    <select class="form-select form-select-sm market-select w-auto">
+                        <option value="">All Markets</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="stats-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="component-card card h-100" data-component="recent-public-trades">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Public Trades
+                    </h5>
+                    <select class="form-select form-select-sm market-select w-auto">
+                        <option value="">All Markets</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="trades-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Book + Market History -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="component-card card h-100" data-component="orderbook">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book me-2"></i>
+                        Order Book
+                    </h5>
+                    <select class="form-select form-select-sm market-select" style="width: auto;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="orderbook-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="component-card card h-100" data-component="market-history">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Market History
+                    </h5>
+                    <select class="form-select form-select-sm market-select" style="width: auto;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="history-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Depth + Gainers/Losers -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="component-card card" data-component="market-depth">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Market Depth
+                    </h5>
+                    <select class="form-select form-select-sm market-select" style="width: auto;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="depth-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Market Volume Overview -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="component-card card" data-component="market-volume-overview">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-dollar-sign me-2"></i>
+                        Market Volume Overview
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="volume-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    </div>
+
+    <script src="./assets/js/bootstrap/bootstrap.bundle.min.js"></script>
+    
+    <script src="./assets/js/jquery-3.6.1.min.js"></script>
+    
+    <!-- NightEx -JS -->
+    <!--<script src="./assets/js/core/init.js"></script> -->
+    <!-- NightTrader JS-->
+    
+    <script src="./assets/js/storage/storage.js"></script>
+    
+    <script src="./assets/js/nighttrader/coinbin/coin.js"></script>
+    <script src="./assets/js/nighttrader/coinbin/jsbn.js"></script>
+    <script src="./assets/js/nighttrader/coinbin/crypto-sha256.js"></script>
+    <script src="./assets/js/nighttrader/coinbin/crypto-sha256-hmac.js"></script>
+    <script src="./assets/js/nighttrader/coinbin/ellipticcurve.js"></script>
+    <script src="./assets/js/nighttrader/coinbin/ripemd160.js"></script>
+    
+    <!-- <script src="./assets/js/worker/worker-sign.js"></script> -->
+
+    <script src="./assets/js/nighttrader/mods/ethers-5.7.2.min.js"></script>
+
+    <script src="./assets/js/nighttrader/exchange.js"></script>
+    
+    
+
+    <!--<script src="./assets/js/nighttrader/start1.js"></script>-->
+    <!--<script src="./assets/js/nighttrader/start2.js"></script>-->
+
+      <!-- NightTrader JS - Deposit part-->
+    <!-- <script src="./assets/js/nighttrader/part-recv-evm.js"></script> -->
+    <!-- 
+    not finished yet
+    <script src="./assets/js/nighttrader/part-recv-peg.js"></script> 
+    <script src="./assets/js/nighttrader/part-recv-txout.js"></script>-->
+
+    <!-- NightTrader JS - Withdrawal part-->
+    <!-- <script src="./assets/js/nighttrader/page-send.js"></script> -->
+    
+    <!--<script src="./assets/js/nighttrader/part-send-evm.js"></script>
+    <script src="./assets/js/nighttrader/part-send-crypto.js"></script>
+    <script src="./assets/js/nighttrader/part-send-crypto-op.js"></script>
+    <script src="./assets/js/nighttrader/part-send-crypto-gui.js"></script>
+    <script src="./assets/js/nighttrader/part-send-instant.js"></script> -->
+  
+
+
+
+    <!--<script src="./assets/js/dummy/ychcore.data.js"></script>-->
+    <script src="./assets/js/core/tradingdata.js"></script>
+    
+    <script>
+    	// Helper functions
+const parseFloat = (val) => Number(val) || 0;
+const toDecimal = (val) => Number(val) ? Number(val) / 1e8 : 0;
+const toBigInt = (val) => BigInt(val || 0); // Keep for potential future use
+// Debugging Utility
+const DebugUtils = {
+	enabled: true,
+	log(componentName, message, data = null) {
+		if (!this.enabled) return;
+		const timestamp = new Date().toISOString();
+		console.groupCollapsed(
+			`%c[DEBUG] %c${componentName} %c@ ${timestamp}`,
+			'color: #888;',
+			'color: #06f; font-weight: bold;',
+			'color: #999;'
+		);
+		console.log(message);
+		if (data) console.log('Data:', data);
+		console.groupEnd();
+	},
+	warn(componentName, message, data = null) {
+		if (!this.enabled) return;
+		const timestamp = new Date().toISOString();
+		console.groupCollapsed(
+			`%c[WARN] %c${componentName} %c@ ${timestamp}`,
+			'color: orange; font-weight: bold;',
+			'color: #b36b00; font-weight: bold;',
+			'color: #999;'
+		);
+		console.warn(message);
+		if (data) console.warn('Context:', data);
+		console.groupEnd();
+	},
+	error(componentName, message, error = null) {
+		if (!this.enabled) return;
+		const timestamp = new Date().toISOString();
+		console.groupCollapsed(
+			`%c[ERROR] %c${componentName} %c@ ${timestamp}`,
+			'color: red; font-weight: bold;',
+			'color: darkred; font-weight: bold;',
+			'color: #999;'
+		);
+		console.error(message);
+		if (error) console.error('Error:', error);
+		console.groupEnd();
+	}
+};
+const DataStore = (() => {
+	const componentName = 'DataStore';
+	const store = new Map();
+	const listeners = new Map();
+	DebugUtils.log(componentName, 'Initialized store');
+	return {
+		set(key, value) {
+			store.set(key, value);
+			DebugUtils.log(componentName, `Set value for key "${key}"`, value);
+			if (listeners.has(key)) {
+				for (const cb of listeners.get(key)) {
+					cb(value);
+				}
+			}
+		},
+		get(key) {
+			const value = store.get(key);
+			DebugUtils.log(componentName, `Get value for key "${key}"`, value);
+			return value;
+		},
+		subscribe(key, callback) {
+			if (!listeners.has(key)) {
+				listeners.set(key, new Set());
+				DebugUtils.log(componentName, `Created new listener set for key "${key}"`);
+			}
+			listeners.get(key).add(callback);
+			DebugUtils.log(componentName, `Subscribed to key "${key}"`);
+		},
+		unsubscribe(key, callback) {
+			if (listeners.has(key)) {
+				listeners.get(key).delete(callback);
+				DebugUtils.log(componentName, `Unsubscribed from key "${key}"`);
+				if (listeners.get(key).size === 0) {
+					listeners.delete(key);
+					DebugUtils.log(componentName, `Removed empty listener set for key "${key}"`);
+				}
+			}
+		}
+	};
+})();
+
+const listenTo = new Proxy({}, {
+	get(_, namespace) {
+		return new Proxy({}, {
+			get(_, method) {
+				return (...args) => {
+					const value = TradingData[namespace]?.[method]?.(...args) ?? null;
+					const key = `${namespace}:${method}:${args.join(':')}`;
+					const callback = (newValue) => {
+						DebugUtils.log(`Update for ${key}`, newValue);
+					};
+					DataStore.subscribe(key, callback);
+					return {
+						value,
+						unsubscribe: () => {
+							DataStore.unsubscribe(key, callback);
+							DebugUtils.log(`Unsubscribed ${key}`); // Optional debug
+						}
+					};
+				};
+			}
+		});
+	}
+});
+// =============================================================================
+// REACTIVE COMPONENT SYSTEM
+// =============================================================================
+class ReactiveComponent {
+	constructor(selector, options = {}) {
+		this.componentName = this.constructor.name || 'ReactiveComponent';
+		this.element = $(selector);
+		this.subscriptions = new Map();
+		this.state = options.initialState || {};
+		this.options = options;
+		DebugUtils.log(this.componentName, `Component initialized`, {
+			selector,
+			initialState: this.state
+		});
+		this.init();
+	}
+	init() {
+		this.setupRefreshButton();
+		this.render();
+	}
+	setupRefreshButton() {
+		this.element.find('.refresh-btn').on('click', () => {
+			console.log(`Refresh triggered by user`, this.componentName)
+			DebugUtils.log(this.componentName, `Refresh triggered by user`);
+			this.refresh();
+		});
+	}
+	setState(newState) {
+		this.state = {
+			...this.state,
+			...newState
+		};
+		DebugUtils.log(this.componentName, `State updated`, this.state);
+		this.render();
+	}
+	subscribe(dataMethod, callback) {
+		if (this.subscriptions.has(dataMethod)) {
+			this.subscriptions.get(dataMethod).unsubscribe();
+		}
+		try {
+			const subscription = dataMethod();
+			this.subscriptions.set(dataMethod, subscription);
+			callback(subscription.value);
+		} catch (error) {
+			DebugUtils.error(this.componentName, `Failed to subscribe`, error);
+			callback(null);
+		}
+	}
+	unsubscribeAll() {
+		this.subscriptions.forEach(sub => sub.unsubscribe());
+		this.subscriptions.clear();
+	}
+	refresh() {
+		this.unsubscribeAll();
+		this.render();
+	}
+	render() {
+		// To be overridden
+	}
+	formatCurrency(value, decimals = 2) {
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			minimumFractionDigits: decimals,
+			maximumFractionDigits: decimals
+		}).format(value);
+	}
+	formatNumber(value, decimals = 2, divideBy1e8 = false) {
+		// Convert BigInt to Number if needed
+		const numericValue = typeof value === 'bigint' ? Number(value) : value;
+		// Apply 1e8 division if requested
+		const processedValue = divideBy1e8 ? numericValue / 1e8 : numericValue;
+		return new Intl.NumberFormat('en-US', {
+			minimumFractionDigits: decimals,
+			maximumFractionDigits: decimals
+		}).format(processedValue);
+	}
+	formatTradeDate(timestamp) {
+		const date = new Date(timestamp * 1000);
+		const now = new Date();
+		const isToday = date.toDateString() === now.toDateString();
+		const isThisYear = date.getFullYear() === now.getFullYear();
+		const pad = (n) => String(n).padStart(2, '0');
+		const hms = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+		if (isToday) return hms;
+		const md = `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+		const ymd = `${String(date.getFullYear()).slice(2)}-${md}`;
+		return isThisYear ? `${md} ${hms}` : `${ymd} ${hms}`;
+	}
+	formatPercent(value) {
+		const className = value >= 0 ? 'positive' : 'negative';
+		const sign = value >= 0 ? '+' : '';
+		return `<span class="${className}">${sign}${this.formatNumber(value, 2)}%</span>`;
+	}
+	showLoading() {
+		this.element.find('.card-body').addClass('loading');
+	}
+	hideLoading() {
+		this.element.find('.card-body').removeClass('loading');
+	}
+}
+class MarketStats extends ReactiveComponent {
+	init() {
+		super.init();
+		this.loadMarkets();
+		this.currentMarket = '';
+	}
+	loadMarkets() {
+		try {
+			const markets = TradingData.Market.getMarketList();
+			this.populateMarketSelect(markets);
+		} catch (e) {
+			console.error('Failed to load markets:', e);
+		}
+	}
+	populateMarketSelect(markets) {
+		const select = this.element.find('.market-select');
+		if (select.children().length === 1) {
+			select.empty().append('<option value="">All Markets</option>');
+			markets.forEach(market => {
+				select.append(`<option value="${market}" data-card-temp>${market}</option>`);
+			});
+		}
+		this.render();
+		select.on('change', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const selectedMarket = this.element.find('.market-select').val();
+		if (!selectedMarket) {
+			this.subscribe(
+				() => listenTo.Market.getPublicTrades(),
+				(allTrades) => {
+					const flatTrades = Object.values(allTrades).flat()
+						.filter(t => t && t.amounta && t.price);
+					this.hideLoading();
+					this.renderStats(this.calculateGlobalStats(flatTrades));
+				}
+			);
+		} else {
+			this.subscribe(
+				() => listenTo.Market.getRecentPublicTrades(selectedMarket, 50),
+				(history) => {
+					this.hideLoading();
+					this.renderStats(this.calculateMarketStats(history, selectedMarket));
+				}
+			);
+		}
+	}
+	calculateGlobalStats(trades) {
+		if (!Array.isArray(trades) || trades.length === 0) return null;
+		const timestamps = trades.map(t => t.dateu ? t.dateu / 1e6 : t.date * 1000);
+		const earliestTimestamp = Math.min(...timestamps);
+		const latestTimestamp = Math.max(...timestamps);
+		const earliestDate = new Date(earliestTimestamp);
+		const mostRecentDate = new Date(latestTimestamp);
+		const now = new Date();
+		const timeSinceLastTradeMs = now - mostRecentDate;
+		const formatRelativeTime = (ms) => {
+			const seconds = Math.floor(ms / 1000);
+			const minutes = Math.floor(seconds / 60);
+			const hours = Math.floor(minutes / 60);
+			const days = Math.floor(hours / 24);
+			if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+			if (hours > 0) return `${hours}h ${minutes % 60}min ago`;
+			if (minutes > 0) return `${minutes}min ago`;
+			return `${seconds}sec ago`;
+		};
+		const lastTradeTime = formatRelativeTime(timeSinceLastTradeMs);
+		const timeDiffMs = latestTimestamp - earliestTimestamp;
+		const recentPeriodDays = Math.max(1, Math.ceil(timeDiffMs / (1000 * 60 * 60 * 24)));
+		let totalVolumeUSD = 0;
+		trades.forEach(trade => {
+			const tradeAmountBigInt = trade.amountb;
+			const quoteCoin = trade.coinb;
+			const priceUSDDecimal = TradingData.Market.getPriceInUSD(quoteCoin) || 0;
+			const tradeAmountDecimal = toDecimal(tradeAmountBigInt);
+			const tradeValueUSD = tradeAmountDecimal * priceUSDDecimal;
+			totalVolumeUSD += tradeValueUSD;
+		});
+		const avgTradeSize = totalVolumeUSD / trades.length;
+		const recentTradesPerDay = trades.length / recentPeriodDays;
+		const uniquePairs = new Set(trades.map(t => `${t.coina}-${t.coinb}`));
+		return {
+			recentVolumeUSD: totalVolumeUSD,
+			avgTradeSize,
+			uniquePairs: uniquePairs.size,
+			recentTrades: trades.length,
+			recentTradesPerDay,
+			lastTradeTime
+		};
+	}
+	calculateMarketStats(history, marketLabel) {
+		if (!Array.isArray(history) || history.length === 0) return null;
+		const timestamps = history.map(t => t.dateu ? t.dateu / 1e6 : t.date * 1000);
+		const earliestTimestamp = Math.min(...timestamps);
+		const latestTimestamp = Math.max(...timestamps);
+		const earliestDate = new Date(earliestTimestamp);
+		const latestDate = new Date(latestTimestamp);
+		const now = new Date();
+		const timeSinceLastTradeMs = now - latestDate;
+		const formatRelativeTime = (ms) => {
+			const seconds = Math.floor(ms / 1000);
+			const minutes = Math.floor(seconds / 60);
+			const hours = Math.floor(minutes / 60);
+			const days = Math.floor(hours / 24);
+			if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+			if (hours > 0) return `${hours}h ${minutes % 60}min ago`;
+			if (minutes > 0) return `${minutes}min ago`;
+			return `${seconds}sec ago`;
+		};
+		const lastTradeTime = formatRelativeTime(timeSinceLastTradeMs);
+		const timeDiffMs = latestTimestamp - earliestTimestamp;
+		const recentPeriodDays = Math.max(1, Math.ceil(timeDiffMs / (1000 * 60 * 60 * 24)));
+		const quoteCoin = history[0].coinb;
+		const priceUSDDecimal = TradingData.Market.getPriceInUSD(quoteCoin) || 0;
+		let totalVolumeBigInt = 0n;
+		history.forEach(trade => {
+			const amountBigInt = typeof trade.amountb === 'bigint' ? trade.amountb : BigInt(trade.amountb);
+			totalVolumeBigInt += amountBigInt;
+		});
+		const totalVolumeDecimal = toDecimal(totalVolumeBigInt);
+		const totalVolumeUSD = totalVolumeDecimal * priceUSDDecimal;
+		const avgTradeSize = totalVolumeUSD / history.length;
+		const recentTradesPerDay = parseFloat((history.length / recentPeriodDays).toFixed(2));
+		return {
+			recentVolumeUSD: totalVolumeUSD,
+			avgTradeSize,
+			recentTrades: history.length,
+			recentTradesPerDay,
+			lastTradeTime,
+			marketLabel
+		};
+	}
+	renderStats(stats) {
+		if (!stats) {
+			this.renderEmpty(stats?.marketLabel || '');
+			return;
+		}
+		const marketText = stats.marketLabel ? `for ${stats.marketLabel}` : 'across all markets';
+		const content = `
+        <div class="row g-2">
+            <div class="col-12 mb-2">
+                <small class="text-muted">Stats ${marketText}</small>
+            </div>
+            <div class="col-6">
+                <div class="data-item text-center">
+                    <div class="h5 mb-0">${this.formatCurrency(stats.recentVolumeUSD)}</div>
+                    <small class="text-muted">Total Volume</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="data-item text-center">
+                    <div class="h5 mb-0">${this.formatCurrency(stats.avgTradeSize)}</div>
+                    <small class="text-muted">Avg Trade Size</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="data-item text-center">
+                    <div class="h5 mb-0">${stats.recentTradesPerDay.toFixed(2)}</div>
+                    <small class="text-muted">Avg Trades/Day</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="data-item text-center">
+                    <div class="h5 mb-0">${stats.recentTrades}</div>
+                    <small class="text-muted">Recent Trades</small>
+                </div>
+            </div>
+            <div class="col-12 mt-3 text-center">
+                <small class="text-muted">Last Trade: ${stats.lastTradeTime || 'N/A'}</small>
+            </div>
+        </div>
+    `;
+		this.element.find('.stats-content').html(content);
+	}
+	renderEmpty(marketLabel = '') {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-chart-pie fs-1 mb-3"></i>
+                <p>No market stats ${marketLabel ? `for ${marketLabel}` : ''}</p>
+            </div>
+        `;
+		this.element.find('.stats-content').html(content);
+	}
+}
+class RecentPublicTrades extends ReactiveComponent {
+	init() {
+		super.init();
+		this.loadMarkets();
+		//this.setupEventListeners();
+		//this.setupRefreshButton();
+		this.currentMarket = '';
+	}
+	loadMarkets() {
+		try {
+			const markets = TradingData.Market.getMarketList();
+			this.populateMarketSelect(markets);
+		} catch (e) {
+			console.error('Failed to load markets:', e);
+		}
+	}
+	populateMarketSelect(markets) {
+		const select = this.element.find('.market-select');
+		if (select.children().length === 1) {
+			select.empty().append('<option value="">All Markets</option>');
+			markets.forEach(market => {
+				select.append(`<option value="${market}" data-card-temp>${market}</option>`);
+			});
+		}
+		this.render();
+		select.on('change', () => this.render());
+	}
+	setupEventListeners() {
+		this.element.find('.refresh-btn').on('click', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const selectedMarket = this.element.find('.market-select').val();
+		if (!selectedMarket) {
+			this.subscribe(
+				() => listenTo.Market.getPublicTrades(),
+				(allTrades) => {
+					const flatTrades = Object.values(allTrades).flat()
+						.sort((a, b) => b.date - a.date)
+						.slice(0, 10);
+					this.hideLoading();
+					this.renderTrades(flatTrades);
+				}
+			);
+		} else {
+			this.subscribe(
+				() => listenTo.Market.getRecentPublicTrades(selectedMarket, 10),
+				(trades) => {
+					this.hideLoading();
+					this.renderTrades(trades);
+				}
+			);
+		}
+	}
+	renderTrades(trades) {
+		if (!trades || !trades.length) {
+			this.renderEmpty();
+			return;
+		}
+		const content = `
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Type</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-end">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trades.map(trade => `
+                            <tr>
+                                <td><strong>${trade.coina}-${trade.coinb}</strong></td>
+                                <td>
+                                    <span class="badge ${trade.type === 1 ? 'bg-success' : 'bg-danger'}">
+                                        ${trade.type === 1 ? 'Buy' : 'Sell'}
+                                    </span>
+                                </td>
+                                <td class="text-end">${this.formatNumber(trade.amounta / 1e8, 8)}</td>
+                                <td class="text-end">${this.formatNumber((trade.buyprice || trade.sellprice) / 1e8, 8)}</td>
+                                <td class="text-end"><small>${this.formatTradeDate(trade.date)}</small></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+		this.element.find('.trades-content').html(content);
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-history fs-1 mb-3"></i>
+                <p>No recent public trades</p>
+            </div>
+        `;
+		this.element.find('.trades-content').html(content);
+	}
+}
+class TopMarkets extends ReactiveComponent {
+	init() {
+		super.init();
+		this.element.find('.market-filter').on('change', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const filterType = this.element.find('.market-filter').val();
+		let dataMethod;
+		switch (filterType) {
+			case 'gainers':
+				dataMethod = () => listenTo.Market.getMarketsByChange('day', 10, 'desc');
+				break;
+			case 'losers':
+				dataMethod = () => listenTo.Market.getMarketsByChange('day', 10, 'asc');
+				break;
+			default:
+				dataMethod = () => listenTo.Market.getTopMarketsByVolume(10);
+		}
+		this.subscribe(dataMethod, (markets) => {
+			this.hideLoading();
+			if (!markets || markets.length === 0) {
+				this.renderEmpty();
+				return;
+			}
+			const content = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Market</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Change</th>
+                                <th class="text-end">Volume</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${markets.map(market => `
+                                <tr class="market-row" data-market="${market.pair}">
+                                    <td><strong>${market.pair}</strong></td>
+                            				<td class="text-end">${parseFloat(market.price).toFixed(8)}</td>
+
+                                    <td class="text-end ${market.change24h >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${this.formatPercent(market.change24h || 0)}
+                                        </td>
+                                    <td class="text-end">${this.formatCurrency(market.volumeUSD || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+			this.element.find('.markets-content').html(content);
+		});
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-chart-bar fs-1 mb-3"></i>
+                <p>No market data available</p>
+            </div>
+        `;
+		this.element.find('.markets-content').html(content);
+	}
+}
+class MarketHistory extends ReactiveComponent {
+	init() {
+		super.init();
+		this.loadMarkets();
+	}
+	async loadMarkets() {
+		try {
+			const markets = TradingData.Market.getMarketList();
+			this.populateMarketSelect(markets);
+		} catch (e) {
+			console.error('Failed to load markets:', e);
+		}
+	}
+	populateMarketSelect(markets) {
+		const select = this.element.find('.market-select');
+		if (select.children().length === 0) {
+			select.empty();
+			markets.forEach(market => {
+				select.append(`<option value="${market}" data-card-temp>${market}</option>`);
+			});
+		}
+		this.render();
+		select.on('change', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const selectedMarket = this.element.find('.market-select').val();
+		if (!selectedMarket) {
+			this.renderEmpty();
+			return;
+		}
+		this.subscribe(
+			() => listenTo.Market.getRecentPublicTrades(selectedMarket, 10),
+			(history) => {
+				this.hideLoading();
+				if (!history || history.length === 0) {
+					this.renderEmpty();
+					return;
+				}
+				const content = `
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${history.map(trade => `
+                                    <tr>
+                                        <td>
+                                            <span class="badge ${trade.type === 1 ? 'bg-success' : 'bg-danger'}">
+                                                ${trade.type === 1 ? 'Buy' : trade.type === 2 ? 'Sell' : 'Trade'}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">${this.formatNumber((trade.type === 2 ? trade.buyprice : trade.sellprice) , 8, true)}</td>
+                                				<td class="text-end">${this.formatNumber(trade.amounta , 8, true)}</td>
+                                        <td class="text-end"><small>${this.formatTradeDate(trade.date)}</small></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+				this.element.find('.history-content').html(content);
+			}
+		);
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-clock fs-1 mb-3"></i>
+                <p>No trade history</p>
+            </div>
+        `;
+		this.element.find('.history-content').html(content);
+	}
+}
+class MarketVolumeOverview extends ReactiveComponent {
+	init() {
+		super.init();
+	}
+	render() {
+		this.showLoading();
+		this.subscribe(
+			() => listenTo.Market.getTopMarketsByVolume(5),
+			(markets) => {
+				this.hideLoading();
+				if (!markets || markets.length === 0) {
+					this.renderEmpty();
+					return;
+				}
+				const content = `
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Market</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Change</th>
+                                    <th class="text-end">Volume (USD)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${markets.map(market => `
+                                    <tr class="market-row" data-market="${market.pair}">
+                                        <td><strong>${market.pair}</strong></td>
+                                        <td class="text-end">${parseFloat(market.price).toFixed(8)}</td>
+                                        <td class="text-end ${market.change24h >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${this.formatPercent(market.change24h || 0)}
+                                        </td>
+                                        <td class="text-end">${this.formatCurrency(market.volumeUSD || 0)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+				this.element.find('.volume-content').html(content);
+			}
+		);
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-dollar-sign fs-1 mb-3"></i>
+                <p>No volume data available</p>
+            </div>
+        `;
+		this.element.find('.volume-content').html(content);
+	}
+}
+class MarketDepthChart extends ReactiveComponent {
+	init() {
+		super.init();
+		this.loadMarkets();
+	}
+	loadMarkets() {
+		try {
+			const markets = TradingData.Market.getMarketList();
+			this.populateMarketSelect(markets);
+		} catch (e) {
+			console.error('Failed to load markets:', e);
+		}
+	}
+	populateMarketSelect(markets) {
+		const select = this.element.find('.market-select');
+		if (select.children().length === 0) {
+			select.empty();
+			markets.forEach(market => {
+				select.append(`<option value="${market}">${market}</option>`);
+			});
+		}
+		this.render();
+		select.on('change', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const selectedMarket = this.element.find('.market-select').val();
+		if (!selectedMarket) return this.renderEmpty();
+		this.subscribe(
+			() => listenTo.Market.getOrderbookDepth(selectedMarket),
+			(depth) => {
+				this.hideLoading();
+				if (!depth || (!depth.bids?.length && !depth.asks?.length)) {
+					return this.renderEmpty();
+				}
+				const format = (val, d = 8) => this.formatNumber(toDecimal(val), d);
+				// Get best bid and ask (first elements in sorted arrays)
+				const bestBid = depth.bids[0];
+				const bestAsk = depth.asks[0];
+				// Calculate spread and midprice
+				const spread = bestAsk.price - bestBid.price;
+				const midPrice = (bestAsk.price + bestBid.price) / 2n;
+				const content = `
+                    <div class="depth-wrapper" style="display: flex; gap: 24px; padding: 1rem; background: #f9f9f9; border-radius: 8px;">
+                        <div class="depth-side depth-bids" style="flex: 1;">
+                            <h6 style="margin-bottom: 0.5rem; color: #0a0;">
+                                <i class="fas fa-arrow-down"></i> Bids
+                            </h6>
+                            <div class="depth-header" style="display: flex; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 4px;">
+                                <div style="flex: 1;">Price</div>
+                                <div style="flex: 1;">Amount</div>
+                                <div style="flex: 1;">Cumulative</div>
+                            </div>
+                            ${depth.bids.map(bid => `
+                                <div class="depth-row bid" style="display: flex; font-family: monospace; font-size: 0.9rem; margin-bottom: 2px;">
+                                    <div style="flex: 1; color: #080;">${format(bid.price)}</div>
+                                    <div style="flex: 1;">${format(bid.amounta)}</div>
+                                    <div style="flex: 1;">${format(bid.cumulative)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="depth-side depth-asks" style="flex: 1;">
+                            <h6 style="margin-bottom: 0.5rem; color: #a00;">
+                                <i class="fas fa-arrow-up"></i> Asks
+                            </h6>
+                            <div class="depth-header" style="display: flex; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 4px;">
+                                <div style="flex: 1;">Price</div>
+                                <div style="flex: 1;">Amount</div>
+                                <div style="flex: 1;">Cumulative</div>
+                            </div>
+                            ${depth.asks.map(ask => `
+                                <div class="depth-row ask" style="display: flex; font-family: monospace; font-size: 0.9rem; margin-bottom: 2px;">
+                                    <div style="flex: 1; color: #d00;">${format(ask.price)}</div>
+                                    <div style="flex: 1;">${format(ask.amountb)}</div>
+                                    <div style="flex: 1;">${format(ask.cumulative)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="depth-summary" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; display: flex; gap: 2rem; justify-content: start;">
+                        <div>
+                            <span class="text-muted">Spread:</span>
+                            <strong>${format(spread)}</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Mid Price:</span>
+                            <strong>${format(midPrice)}</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Market:</span>
+                            <strong>${selectedMarket}</strong>
+                        </div>
+                    </div>
+                `;
+				this.element.find('.depth-content').html(content);
+			}
+		);
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-chart-line fs-1 mb-3"></i>
+                <p>No market depth data available</p>
+            </div>
+        `;
+		this.element.find('.depth-content').html(content);
+	}
+}
+class OrderBook extends ReactiveComponent {
+	init() {
+		super.init();
+		this.loadMarkets();
+	}
+	async loadMarkets() {
+		try {
+			const markets = TradingData.Market.getMarketList();
+			this.populateMarketSelect(markets);
+		} catch (e) {
+			console.error('Failed to load markets:', e);
+		}
+	}
+	populateMarketSelect(markets) {
+		const select = this.element.find('.market-select');
+		if (select.children().length === 0) {
+			select.empty();
+			markets.forEach(market => {
+				select.append(`<option value="${market}" data-card-temp>${market}</option>`);
+			});
+		}
+		this.render();
+		select.on('change', () => this.render());
+	}
+	render() {
+		this.showLoading();
+		const selectedMarket = this.element.find('.market-select').val();
+		if (!selectedMarket) {
+			this.renderEmpty();
+			return;
+		}
+		this.subscribe(
+			() => listenTo.Market.getOrderbook(selectedMarket),
+			(orderBook) => {
+				this.hideLoading();
+				if (!orderBook || (!orderBook.bids?.length && !orderBook.asks?.length)) {
+					this.renderEmpty();
+					return;
+				}
+				// Convert bigint amounts to decimal numbers using toDecimal
+				const bids = orderBook.bids.map(bid => ({
+					...bid,
+					amounta: toDecimal(bid.amounta),
+					price: toDecimal(bid.price)
+				}));
+				const asks = orderBook.asks.map(ask => ({
+					...ask,
+					amounta: toDecimal(ask.amounta),
+					price: toDecimal(ask.price)
+				}));
+				const maxBid = Math.max(...bids.map(b => b.amounta), 0);
+				const maxAsk = Math.max(...asks.map(a => a.amounta), 0);
+				const renderRow = (item, type, max) => {
+					const percent = max ? (item.amounta / max) * 100 : 0;
+					const barColor = type === 'bid' ? 'rgba(0, 128, 0, 0.2)' : 'rgba(255, 0, 0, 0.2)';
+					return `
+                        <tr>
+                            <td class="text-end" style="position: relative;">
+                                <div style="position: absolute; left: 0; top: 0; height: 100%; width: ${percent}%; background-color: ${barColor}; z-index: 0;"></div>
+                                <span style="position: relative; z-index: 1;">${this.formatNumber(item.amounta, 8)}</span>
+                            </td>
+                            <td class="text-end" style="position: relative;">
+                                <span style="position: relative; z-index: 1;">${this.formatNumber(item.price, 8)}</span>
+                            </td>
+                        </tr>
+                    `;
+				};
+				const asksHTML = asks
+					.sort((a, b) => a.price - b.price) // lowest price first
+					.slice(0, 10)
+					.reverse() // flip so highest ask at top, lowest ask at bottom
+					.map(ask => renderRow(ask, 'ask', maxAsk))
+					.join('');
+				const bidsHTML = bids
+					.sort((a, b) => b.price - a.price) // highest price first
+					.slice(0, 10)
+					.map(bid => renderRow(bid, 'bid', maxBid))
+					.join('');
+				const content = `
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover w-100">
+                            <thead><tr><th class="text-end">Amount</th><th class="text-end">Price</th></tr></thead>
+                            <tbody class="orderbook-asks">${asksHTML}</tbody>
+                        </table>
+                    </div>
+                    <hr class="my-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover w-100">
+                            <thead><tr><th class="text-end">Amount</th><th class="text-end">Price</th></tr></thead>
+                            <tbody class="orderbook-bids">${bidsHTML}</tbody>
+                        </table>
+                    </div>
+                `;
+				this.element.find('.orderbook-content').html(content);
+			}
+		);
+	}
+	renderEmpty() {
+		const content = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-book fs-1 mb-3"></i>
+                <p>No order book data</p>
+            </div>
+        `;
+		this.element.find('.orderbook-content').html(content);
+	}
+}
+const components = {
+	topMarkets: new TopMarkets('[data-component="market-list"]'),
+	orderBook: new OrderBook('[data-component="orderbook"]'),
+	marketHistory: new MarketHistory('[data-component="market-history"]'),
+	marketStats: new MarketStats('[data-component="market-stats"]'),
+	recentPublicTrades: new RecentPublicTrades('[data-component="recent-public-trades"]'),
+	marketVolumeOverview: new MarketVolumeOverview('[data-component="market-volume-overview"]'),
+	marketDepthChart: new MarketDepthChart('[data-component="market-depth"]')
+};
+
+function initRender() {
+	Object.values(components).forEach(component => {
+		component.init();
+	});
+}
+// Add this to your UI code:
+function showNetworkChangeFeedback(network) {
+	$('.component-card select').each(function() {
+		$(this).find('option[data-card-temp]').remove();
+		$(this).val(''); // Reset selected value
+	});
+	const feedbackEl = document.createElement('div');
+	feedbackEl.className = 'network-change-feedback';
+	feedbackEl.innerHTML = `Switched to ${network} network...`;
+	document.body.appendChild(feedbackEl);
+	setTimeout(() => {
+		feedbackEl.classList.add('fade-out');
+		setTimeout(() => feedbackEl.remove(), 500);
+	}, 5000);
+}
+
+function showNetworkChangeFeedback2(network) {
+	// 1. First show the feedback UI
+	const feedbackEl = document.createElement('div');
+	feedbackEl.className = 'network-change-feedback';
+	feedbackEl.innerHTML = `Switched to ${network} network...`;
+	document.body.appendChild(feedbackEl);
+	app.eventSystem.on("connection:success", () => {
+		// Do something when the connection is successful
+		console.log("Connection successful!");
+		doSomethingLater();
+	});
+
+	function doSomethingLater() {
+		// Your follow-up logic here
+		console.log("Now doing something else after connection success.");
+		// 2. Clear components and prepare for reload
+		Object.values(components).forEach(component => {
+			// Clean up existing subscriptions
+			component.unsubscribeAll();
+			// If the component has a DOM element, clean up select options
+			if (component.element) {
+				const $select = component.element.find('select');
+				// Remove temporary options
+				$select.find('option[data-card-temp]').remove();
+				// Clear the select's selected value
+				//$select.val('');
+				$select.prop('selectedIndex', 0);
+			}
+		});
+		// 3. Schedule the reinitialization after a brief delay
+		setTimeout(() => {
+			initRender(); // Reinitialize all components
+			// Remove feedback after everything is loaded
+			feedbackEl.classList.add('fade-out');
+			setTimeout(() => feedbackEl.remove(), 500);
+		}, 3000); // Give the network time to initialize
+	}
+}
+// =============================================================================
+// APPLICATION INITIALIZATION
+// =============================================================================
+$(document).ready(function() {
+	//init all components
+	// Set up event listeners for WebSocket updates
+	app.eventSystem.on("ws:buysupdate", (wsdata) => {
+		let buysupdate = wsdata.objects[0];
+		let marketname = buysupdate.coina + "-" + buysupdate.coinb;
+		ych.data.buys[marketname] = buysupdate.buyspage;
+		console.log('ws:buysupdate');
+		components.orderBook.refresh();
+		components.marketDepthChart.refresh();
+	});
+	app.eventSystem.on("ws:sellsupdate", (wsdata) => {
+		let sellsupdate = wsdata.objects[0];
+		let marketname = sellsupdate.coina + "-" + sellsupdate.coinb;
+		ych.data.sells[marketname] = sellsupdate.sellspage;
+		//ych.data.sells['BAYR-BTC'][0].amounta = 1827373839322n;
+		console.log('ws:sellsupdate');
+		components.orderBook.refresh();
+		components.marketDepthChart.refresh();
+	});
+	app.eventSystem.on("ws:markettradesupdate", (wsdata) => {
+		let tradesupdate = wsdata.objects[0];
+		let market = wsdata.objects[1];
+		let marketname = tradesupdate.coina + "-" + tradesupdate.coinb;
+		ych.data.trades[marketname] = tradesupdate.page;
+		console.log('ws:markettradesupdate');
+		components.marketStats.refresh();
+		components.orderBook.refresh();
+		components.recentPublicTrades.refresh();
+		components.marketDepthChart.refresh();
+	});
+	//network selector
+	const $networkSelect = $('#network-select');
+	const $networkBadge = $('#network-badge');
+
+	function updateNetworkUI(network) {
+		$networkBadge
+			.text(network.toUpperCase())
+			.removeClass('network-mainnet network-testnet')
+			.addClass(network === 'mainnet' ? 'network-mainnet' : 'network-testnet');
+		$networkSelect.val(network);
+	}
+	$networkSelect.on('change', function() {
+		const network = $(this).val();
+		updateNetworkUI(network);
+		$(document).trigger('networkChanged', {
+			network,
+			isMainnet: network === 'mainnet'
+		});
+	});
+	// Init
+	updateNetworkUI(app.network.getNetwork());
+	// Respond to external changes
+	$(document).on('networkChanged', (e, {
+		network
+	}) => {
+		updateNetworkUI(network);
+		app.network.switchNetwork(network);
+	});
+	// Global refresh button
+	$(document).on('click', '.refresh-btn', function() {
+		const $btn = $(this);
+		const $icon = $btn.find('i');
+		$icon.addClass('fa-spin');
+		setTimeout(() => {
+			$icon.removeClass('fa-spin');
+		}, 1000);
+	});
+});
+
+    </script>
+</body>
+</html>
